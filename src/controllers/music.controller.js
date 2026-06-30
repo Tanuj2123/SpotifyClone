@@ -1,56 +1,52 @@
 const jwt = require("jsonwebtoken");
-const userModel = require("../model/music.model");
+const albumModel = require("../model/album.model");
 const {uploadFile} = require("../services/storage.service");
 const musicModel = require("../model/music.model");
 
 async function createMusic(req,res){
-    const token = req.cookies.token;
+   
+    const {title} = req.body;
+    const file = req.file;
 
-    if(!token){
-        return res.status(401).json({
-            message:"Unauthorized"
-        });
-    }
+    const result = await uploadFile(file.buffer.toString("base64"));
 
-    try {
-       const decoded =  jwt.verify(token,process.env.JWT_SECRET);
+    const music = await musicModel.create({
+        uri:result.url,
+        title,
+        artist:req.user.id,
+    })
 
-       if(decoded.role !== "artist"){
-            return res.status(403).json({message:"you dont have access to create music"});
-       }
+    res.status(201).json({
+        message:"Music created Successfully",
+        music:{
+            id:music._id,
+            uri:music.uri,
+            title:music.title,
+            artist:music.artist
+        }
+    });
+}
 
-       const {title} = req.body;
-        const file = req.file;
+async function createAlbum(req,res){
+        
+    const {title,musics} = req.body;
 
-        const result = await uploadFile(file.buffer.toString("base64"));
+    const album = await albumModel.create({
+        title,
+        musics:musics,
+        artist:req.user.id
+    });
 
-        const music = await musicModel.create({
-            uri:result.url,
+    res.status(201).json({
+        message:"new album created",
+        album:{
             title,
-            artist:decoded.id,
-        })
-
-        res.status(201).json({
-            message:"Music created Successfully",
-            music:{
-                id:music._id,
-                uri:music.uri,
-                title:music.title,
-                artist:music.artist
-            }
-        });
-    } catch(error) {
-
-        console.log(error);
-
-        return res.status(401).json({
-            message:"Unauthorized"
-        });
-    }
-
-
+            musics,
+            artist:album.artist
+        }
+    });
 }
 
 
 
-module.exports={createMusic};
+module.exports={createMusic,createAlbum};
